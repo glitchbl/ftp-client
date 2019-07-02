@@ -1,0 +1,11 @@
+{
+    "name": "glitchbl/ftp-client",
+    "require": {
+        "psr/log": "^1.1"
+    },
+    "autoload": {
+        "psr-4": {
+            "Glitchbl\\": "src/"
+        }
+    }
+}
