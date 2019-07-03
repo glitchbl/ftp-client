@@ -261,7 +261,7 @@ class FtpClient {
     /**
      * @param string $server_file Server file to download
      * @param string $local_file Location where download the file
-     * @throws Exception If errors when download the file
+     * @throws Exception If errors when downloading the file
      */
     public function get($server_file, $local_file)
     {
@@ -270,6 +270,23 @@ class FtpClient {
             throw new Exception("FtpClient: Impossible to download the server file '{$server_file}' to '{$local_file}'");
         } else {
             $this->log('info', "FtpClient: File '{$server_file}' downloaded to '{$local_file}'");
+        }
+    }
+
+    /**
+     * @param string $local_file File to upload
+     * @param string|null $server_file Server location where upload
+     * @throws Exception If errors when uploading the file
+     */
+    public function put($local_file, $server_file = null)
+    {
+        $this->checkConnection();
+        if (!$server_file)
+            $server_file = basename($local_file);
+        if (!@ftp_put($this->connection, $server_file, $local_file, FTP_BINARY)) {
+            throw new Exception("FtpClient: Impossible to upload the local file '{$local_file}' to server file '{$server_file}'");
+        } else {
+            $this->log('info', "FtpClient: File '{$local_file}' uploaded to '{$server_file}'");
         }
     }
 
