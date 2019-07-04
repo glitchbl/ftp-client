@@ -61,9 +61,16 @@ class FtpClient {
         $this->connection = false;
     }
 
-    function __destruct() {
+    function __destruct()
+    {
+        $this->close();
+    }
+
+    public function close()
+    {
         if ($this->connection !== false) {
             ftp_close($this->connection);
+            $this->connection = false;
             $this->log('info', "FtpClient: Disconnected from server {$this->server}:{$this->port}");
         }
     }
