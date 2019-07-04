@@ -69,6 +69,14 @@ class FtpClient {
     }
 
     /**
+     * @param \Psr\Log\LoggerInterface $logger Logger
+     */
+    public function setLogger(LoggerInterface $logger)
+    {
+        $this->logger = $logger;
+    }
+
+    /**
      * @param string $type Log type
      * @param string $message Log message
      * @throws Exception

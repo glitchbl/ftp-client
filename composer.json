@@ -1,5 +1,6 @@
 {
     "name": "glitchbl/ftp-client",
+    "description": "FTP Client",
     "require": {
         "psr/log": "^1.1"
     },
