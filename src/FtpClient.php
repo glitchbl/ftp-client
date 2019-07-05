@@ -56,7 +56,7 @@ class FtpClient {
         $this->port = $port;
         $this->logger = $logger;
 
-        $cache = [];
+        $this->cache = [];
 
         $this->connection = false;
     }
@@ -179,9 +179,10 @@ class FtpClient {
 
     /**
      * @param string $directory Directory where list directories and files
+     * @param boolean $caching Caching or not the results
      * @return array Directories and files of the directory
      */
-    public function directories_files($directory = '')
+    public function directories_files($directory = '', $caching = true)
     {
         $this->checkConnection();
         if (isset($directory[0]) && $directory[0] === '/') {
@@ -200,7 +201,7 @@ class FtpClient {
         }
         $full_path = rtrim($full_path, '/');
 
-        if (isset($this->cache[$full_path]))
+        if ($caching && isset($this->cache[$full_path]))
             return $this->cache[$full_path];
 
         $raw_lists = $this->nlist($directory);
