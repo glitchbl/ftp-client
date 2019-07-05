@@ -100,7 +100,7 @@ class FtpClient {
     }
 
     /**
-     * @param bool $pasv Enable passive mode
+     * @param boolean $pasv Enable passive mode
      * @throws Exception If connection is impossible
      */
     public function connect($pasv = true)
@@ -154,20 +154,20 @@ class FtpClient {
     /**
      * @param string $directory Directory to check
      * @throws Exception If errors
-     * @return bool Return true if directory
+     * @return boolean Return true if directory
      */
     public function isDirectory($directory)
     {
         $this->checkConnection();
         $pwd = $this->pwd();
         $is_dir = @ftp_chdir($this->connection, $directory);
-        $this->chdir($pwd);
+        @ftp_chdir($this->connection, $pwd);
         return $is_dir;
     }
 
     /**
      * @param string $file File to check
-     * @return bool Return true if file
+     * @return boolean Return true if file
      */
     public function isFile($file)
     {
