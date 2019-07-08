@@ -32,7 +32,7 @@ class FtpClient {
     protected $connection;
 
     /**
-     * @var \Psr\Log\LoggerInterface Logger
+     * @var \Psr\Log\LoggerInterface|null Logger
      */
     protected $logger;
 
@@ -46,7 +46,7 @@ class FtpClient {
      * @param string $login FTP Login
      * @param string $password FTP Password
      * @param integer $port FTP Port
-     * @param \Psr\Log\LoggerInterface $logger Logger
+     * @param \Psr\Log\LoggerInterface|null $logger Logger
      */
     function __construct($server, $login, $password, $port = 21, LoggerInterface $logger = null)
     {
@@ -71,7 +71,7 @@ class FtpClient {
         if ($this->connection !== false) {
             ftp_close($this->connection);
             $this->connection = false;
-            $this->log('info', "FtpClient: Disconnected from server {$this->server}:{$this->port}");
+            $this->log('info', "Disconnected from server {$this->server}:{$this->port}");
         }
     }
 
@@ -86,13 +86,13 @@ class FtpClient {
     /**
      * @param string $type Log type
      * @param string $message Log message
-     * @throws Exception
+     * @throws \Exception
      */
     protected function log($type, $message)
     {
         if ($this->logger) {
             if (method_exists($this->logger, $type)) {
-                call_user_func([$this->logger, $type], $message);
+                call_user_func([$this->logger, $type], "FtpClient: {$message}");
             } else {
                 throw new Exception("Logger has not '{$type}' method");
             }
@@ -101,51 +101,52 @@ class FtpClient {
 
     /**
      * @param boolean $pasv Enable passive mode
-     * @throws Exception If connection is impossible
+     * @param integer $timeout Connection timeout
+     * @throws \Exception If failed to connect
      */
-    public function connect($pasv = true)
+    public function connect($pasv = true, $timeout = 3600)
     {
-        $this->connection = @ftp_connect($this->server, $this->port, 3600);
+        $this->connection = @ftp_connect($this->server, $this->port, $timeout);
 
         if ($this->connection === false) {
-            throw new Exception("FtpClient: Connection to {$this->server}:{$this->port} impossible");
+            throw new Exception("FtpClient: Failed to connect to {$this->server}:{$this->port}");
         } else {
-            $this->log('info', "FtpClient: Connected to {$this->server}:{$this->port}");
+            $this->log('info', "Connected to {$this->server}:{$this->port}");
             if (!@ftp_login($this->connection, $this->login, $this->password)) {
-                throw new Exception("FtpClient: Login to {$this->server}:{$this->port} impossible with credentials");
+                throw new Exception("FtpClient: Failed to login with '{$this->login}'");
             }
-            $this->log('info', "FtpClient: Logged with {$this->login}");
+            $this->log('info', "Logged with {$this->login}");
             if ($pasv) {
                 if (@ftp_set_option($this->connection, FTP_USEPASVADDRESS, false) && @ftp_pasv($this->connection, true)) {
-                    $this->log('info', 'FtpClient: Passive mode enabled');
+                    $this->log('info', 'Passive mode enabled');
                 } else {
-                    $this->log('warning', "FtpClient: Enabling passive mode impossible");
+                    $this->log('warning', "Failed to enable passive mode");
                 }
             }
         }
     }
 
     /**
-     * @throws Exception If connection is closed
+     * @throws \Exception If connection is closed
      */
     protected function checkConnection()
     {
         if ($this->connection === false) {
-            throw new Exception("FtpClient: Can't execute command on a closed connection");
+            throw new Exception("FtpClient: Connection is closed");
         }
     }
 
     /**
      * @param string $directory Directory to nlist
-     * @throws Exception If problem with nlist
-     * @return array Files and directories of the directory
+     * @throws \Exception If problems executing nlist
+     * @return array Raw list of files and directories
      */
     protected function nlist($directory)
     {
         $this->checkConnection();
-        $nlist = ftp_nlist($this->connection, $directory);
+        $nlist = @ftp_nlist($this->connection, $directory);
         if ($nlist === false) {
-            throw new Exception("Impossible to execute nlist to '{$directory}' directory");
+            throw new Exception("Failed to execute nlist for '{$directory}'");
         } else {
             return $nlist;
         }
@@ -153,7 +154,7 @@ class FtpClient {
 
     /**
      * @param string $directory Directory to check
-     * @throws Exception If errors
+     * @throws \Exception If errors
      * @return boolean Return true if directory
      */
     public function isDirectory($directory)
@@ -178,13 +179,14 @@ class FtpClient {
     }
 
     /**
-     * @param string $directory Directory where list directories and files
+     * @param string $directory Directory where list files and directories
      * @param boolean $caching Caching or not the results
-     * @return array Directories and files of the directory
+     * @return array Files and directories
      */
-    public function directories_files($directory = '', $caching = true)
+    public function files_directories($directory = '', $caching = true)
     {
         $this->checkConnection();
+
         if (isset($directory[0]) && $directory[0] === '/') {
             $full_path = $directory;
         } else {
@@ -199,6 +201,7 @@ class FtpClient {
                 }
             }
         }
+
         $full_path = rtrim($full_path, '/');
 
         if ($caching && isset($this->cache[$full_path]))
@@ -220,33 +223,33 @@ class FtpClient {
             }
         }
 
-        $directories_files = compact('directories', 'files');
-        $this->cache[$full_path] = $directories_files;
-        return $directories_files;
+        $files_directories = compact('directories', 'files');
+        $this->cache[$full_path] = $files_directories;
+        return $files_directories;
     }
 
     /**
      * @param string $directory Directory where list files
-     * @return array Files of the directory
+     * @return array Files
      */
     public function files($directory = '')
     {
-        $directories_files = $this->directories_files($directory);
-        return $directories_files['files'];
+        $files_directories = $this->files_directories($directory);
+        return $files_directories['files'];
     }
     
     /**
      * @param string $directory Directory where list directories
-     * @return array Directories of the directory
+     * @return array Directories
      */
     public function directories($directory = '')
     {
-        $directories_files = $this->directories_files($directory);
-        return $directories_files['directories'];
+        $files_directories = $this->files_directories($directory);
+        return $files_directories['directories'];
     }
 
     /**
-     * @throws Exception If pwd fails
+     * @throws \Exception If pwd fails
      * @return string Current directory
      */
     public function pwd()
@@ -254,7 +257,7 @@ class FtpClient {
         $this->checkConnection();
         $pwd = @ftp_pwd($this->connection);
         if ($pwd === false) {
-            throw new Exception("Impossible to execute {$pwd}");
+            throw new Exception("Failed to execute pwd");
         } else {
             return $pwd;
         }
@@ -262,37 +265,37 @@ class FtpClient {
 
     /**
      * @param string $directory Directory to navigate to
-     * @throws Exception If impossible to change the current directory
+     * @throws \Exception If impossible to change the current directory
      */
     public function chdir($directory)
     {
         $this->checkConnection();
         if (!@ftp_chdir($this->connection, $directory)) {
-            throw new Exception("FtpClient: Impossible to change the current directory to '{$directory}'");
+            throw new Exception("FtpClient: Failed to change the current directory to '{$directory}'");
         } else {
-            $this->log('info', "FtpClient: Current directory changed to '{$directory}'");
+            $this->log('info', "Current directory changed to '{$directory}'");
         }
     }
 
     /**
      * @param string $server_file Server file to download
      * @param string $local_file Location where download the file
-     * @throws Exception If errors when downloading the file
+     * @throws \Exception If errors when downloading the file
      */
     public function get($server_file, $local_file)
     {
         $this->checkConnection();
         if (!@ftp_get($this->connection, $local_file, $server_file, FTP_BINARY)) {
-            throw new Exception("FtpClient: Impossible to download the server file '{$server_file}' to '{$local_file}'");
+            throw new Exception("FtpClient: Failed to download the server file '{$server_file}' to '{$local_file}'");
         } else {
-            $this->log('info', "FtpClient: File '{$server_file}' downloaded to '{$local_file}'");
+            $this->log('info', "Server file '{$server_file}' downloaded to '{$local_file}'");
         }
     }
 
     /**
      * @param string $local_file File to upload
      * @param string|null $server_file Server location where upload
-     * @throws Exception If errors when uploading the file
+     * @throws \Exception If errors when uploading the file
      */
     public function put($local_file, $server_file = null)
     {
@@ -300,66 +303,66 @@ class FtpClient {
         if (!$server_file)
             $server_file = basename($local_file);
         if (!@ftp_put($this->connection, $server_file, $local_file, FTP_BINARY)) {
-            throw new Exception("FtpClient: Impossible to upload the local file '{$local_file}' to server file '{$server_file}'");
+            throw new Exception("FtpClient: Failed to upload the local file '{$local_file}' to '{$server_file}'");
         } else {
-            $this->log('info', "FtpClient: File '{$local_file}' uploaded to '{$server_file}'");
+            $this->log('info', "Local file '{$local_file}' uploaded to '{$server_file}'");
         }
     }
 
     /**
      * @param string $file File to delete
-     * @throws Exception If impossible to delete file
+     * @throws \Exception If impossible to delete file
      */
     public function delete($file)
     {
         $this->checkConnection();
         if (!@ftp_delete($this->connection, $file)) {
-            throw new Exception("FtpClient: Impossible to delete server file '{$file}'");
+            throw new Exception("FtpClient: Failed to delete server file '{$file}'");
         } else {
-            $this->log('info', "FtpClient: Server file '{$file}' deleted");
+            $this->log('info', "Server file '{$file}' deleted");
         }
     }
 
     /**
      * @param string $directory Directory to create
-     * @throws Exception If impossible to create directory
+     * @throws \Exception If impossible to create directory
      */
     public function mkdir($directory)
     {
         $this->checkConnection();
         if (@ftp_mkdir($this->connection, $directory) === false) {
-            throw new Exception("FtpClient: Impossible to create '{$directory}' directory");
+            throw new Exception("FtpClient: Failed to create directory '{$directory}' ");
         } else {
-            $this->log('info', "FtpClient: Directory '{$directory}' created");
+            $this->log('info', "Directory '{$directory}' created");
         }
     }
 
     /**
      * @param string $directory Directory to delete
-     * @throws Exception If impossible to delete directory
+     * @throws \Exception If impossible to delete directory
      */
     public function rmdir($directory)
     {
         $this->checkConnection();
         if (!@ftp_rmdir($this->connection, $directory)) {
-            throw new Exception("FtpClient: Impossible to delete '{$directory}' directory");
+            throw new Exception("FtpClient: Failed to delete directory '{$directory}'");
         } else {
-            $this->log('info', "FtpClient: Directory '{$directory}' deleted");
+            $this->log('info', "Directory '{$directory}' deleted");
         }
     }
 
     /**
-     * @param string $oldname Directory or file to rename
+     * @param string $oldname File or directory to rename
      * @param string $newname New name
-     * @throws Exception If errors when renaming the file or directory
+     * @throws \Exception If errors when renaming the file or directory
      */
     public function rename($oldname, $newname)
     {
         $this->checkConnection();
         if (!@ftp_rename($this->connection, $oldname, $newname)) {
-            throw new Exception("FtpClient: Impossible to rename the directory/file '{$oldname}' to '{$newname}'");
+            throw new Exception("FtpClient: Failed to rename '{$oldname}' to '{$newname}'");
         } else {
-            $this->log('info', "FtpClient: Directory/file '{$oldname}' renamed to '{$newname}'");
+            $this->log('info', "'{$oldname}' renamed to '{$newname}'");
         }
     }
 }
