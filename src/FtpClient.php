@@ -94,7 +94,7 @@ class FtpClient {
             if (method_exists($this->logger, $type)) {
                 call_user_func([$this->logger, $type], "FtpClient: {$message}");
             } else {
-                throw new Exception("Logger has not '{$type}' method");
+                throw new Exception("Logger has not method '{$type}'");
             }
         }
     }
@@ -183,7 +183,7 @@ class FtpClient {
      * @param boolean $caching Caching or not the results
      * @return array Files and directories
      */
-    public function files_directories($directory = '', $caching = true)
+    public function files_directories($directory = '', $caching = false)
     {
         $this->checkConnection();
 
